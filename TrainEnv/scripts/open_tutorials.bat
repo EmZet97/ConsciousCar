@@ -1,2 +1,0 @@
-start "" https://gilberttanner.com/blog/tensorflow-object-detection-with-tensorflow-2-creating-a-custom-model
-start "" https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/tf2.md
