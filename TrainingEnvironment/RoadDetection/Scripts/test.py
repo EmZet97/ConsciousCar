@@ -2,7 +2,7 @@ import os
 import numpy as np
 import torch
 from PIL import Image
-import main as m
+import train as m
 
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -14,12 +14,11 @@ import transforms as T
 
 def main():    
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    model = torch.load("./model/model.t")
+    model = torch.load("../Models/model.t")
     
-    dataset = m.PennFudanDataset('PennFudanPed', m.get_transform(train=True))
-    dataset_test = m.PennFudanDataset('PennFudanPed', m.get_transform(train=False))
-    indices = torch.randperm(len(dataset)).tolist()
-    dataset_test = torch.utils.data.Subset(dataset_test, indices[-50:])
+    dataset_test = m.Dataset(m.get_transform(train=False))
+    indices = torch.randperm(len(dataset_test)).tolist()
+    dataset_test = torch.utils.data.Subset(dataset_test, indices)
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test, batch_size=1, shuffle=False, num_workers=1,
         collate_fn=utils.collate_fn)
@@ -40,13 +39,16 @@ def main():
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.")
     print(prediction[0]['masks'].shape)
     for i in range(prediction[0]['masks'].shape[0]):
-        mask = np.add(mask, prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
+        #mask = np.add(mask, prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
+        mask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
         print(mask)
         print("------------------------------------------------")
+        break
         
 
-    
-    img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
+    print(mask)
+    #img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
+    img_mask = Image.fromarray(mask)
     img.show()
     img_mask.show()
 

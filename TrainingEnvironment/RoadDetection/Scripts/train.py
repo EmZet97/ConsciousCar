@@ -14,22 +14,26 @@ from engine import train_one_epoch, evaluate
 import utils
 import transforms as T
 
-train_eval_prop = 0.5
+
+images_path = "..\\PreprocessedData\\Images"
+masks_path = "..\\PreprocessedData\\Masks"
+
+train_eval_prop = 0.8
+epochs = 300
 
 
 class Dataset(object):
-    def __init__(self, root, transforms):
-        self.root = root
+    def __init__(self, transforms):
         self.transforms = transforms
         # load all image files, sorting them to
         # ensure that they are aligned
-        self.imgs = list(sorted(os.listdir(os.path.join(root, "Images"))))
-        self.masks = list(sorted(os.listdir(os.path.join(root, "Masks"))))
+        self.imgs = list(sorted(os.listdir(images_path)))
+        self.masks = list(sorted(os.listdir(masks_path)))
 
     def __getitem__(self, idx):
         # load images and masks
-        img_path = os.path.join(self.root, "Images", self.imgs[idx])
-        mask_path = os.path.join(self.root, "Masks", self.masks[idx])
+        img_path = os.path.join(images_path, self.imgs[idx])
+        mask_path = os.path.join(masks_path, self.masks[idx])
         img = Image.open(img_path).convert("RGB")
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
@@ -40,6 +44,7 @@ class Dataset(object):
         
         # instances are encoded as different colors
         obj_ids = np.unique(mask)
+        
         # first id is the background, so remove it
         obj_ids = obj_ids[1:]
 
@@ -127,8 +132,8 @@ def main():
     # our dataset has two classes only - background and road
     num_classes = 2
     # use our dataset and defined transformations
-    dataset = Dataset('../', get_transform(train=True))
-    dataset_test = Dataset('../', get_transform(train=False))
+    dataset = Dataset(get_transform(train=True))
+    dataset_test = Dataset(get_transform(train=False))
 
     # split the dataset in train and test set
     indices = torch.randperm(len(dataset)).tolist()
@@ -160,7 +165,7 @@ def main():
                                                    gamma=0.1)
 
     # let's train it for 10 epochs
-    num_epochs = 1
+    num_epochs = epochs
 
     for epoch in range(num_epochs):
         # train for one epoch, printing every 10 iterations
@@ -171,6 +176,7 @@ def main():
         evaluate(model, data_loader_test, device=device)
 
     model_name = f"../Models/model_e{num_epochs}_t{len(data_loader)}_e{len(data_loader_test)}.t"
+    
     torch.save(model, model_name)
     print("Saved trained model in: ", model_name)
     
