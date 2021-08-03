@@ -19,7 +19,7 @@ images_path = "..\\PreprocessedData\\Images"
 masks_path = "..\\PreprocessedData\\Masks"
 
 train_eval_prop = 0.8
-epochs = 300
+epochs = 500
 
 
 class Dataset(object):

@@ -39,16 +39,16 @@ def main():
     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.")
     print(prediction[0]['masks'].shape)
     for i in range(prediction[0]['masks'].shape[0]):
-        #mask = np.add(mask, prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
-        mask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
-        print(mask)
-        print("------------------------------------------------")
-        break
+        mask = np.add(mask, prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
+        #mask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
+        #print(mask)
+        #print("------------------------------------------------")
+        #break
         
 
-    print(mask)
-    #img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
-    img_mask = Image.fromarray(mask)
+    #print(mask)
+    img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
+    #img_mask = Image.fromarray(mask)
     img.show()
     img_mask.show()
 
