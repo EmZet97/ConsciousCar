@@ -8,7 +8,7 @@ from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 import sys
-sys.path.append('torch_vision/references/detection/')
+sys.path.append('vision/references/detection/')
 
 from engine import train_one_epoch, evaluate
 import utils
