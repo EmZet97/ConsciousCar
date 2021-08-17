@@ -5,7 +5,7 @@ import cv2 as cv
 
 cur_path = os.path.dirname(__file__)
 
-final_data_width = 800
+final_data_width = 600
 final_data_height = 600
 
 

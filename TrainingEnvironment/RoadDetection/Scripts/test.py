@@ -24,31 +24,32 @@ def main():
         collate_fn=utils.collate_fn)
 
     img, _ = dataset_test[1]
+
+    print("test:", img)
     # put the model in evaluation mode
     model.eval()
     with torch.no_grad():
         prediction = model([img.to(device)])
 
 
+    img_arr = img.mul(255).permute(1, 2, 0).byte().numpy()
+    img = Image.fromarray(img_arr)
+    mask = np.zeros(img_arr.shape[:1], dtype=int)
 
-    img = Image.fromarray(img.mul(255).permute(1, 2, 0).byte().numpy())
-    mask = prediction[0]['masks'][0, 0].mul(255).byte().cpu().numpy()
-    print(prediction)
-    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.")
-    print(prediction[0])
-    print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.")
-    print(prediction[0]['masks'].shape)
     for i in range(prediction[0]['masks'].shape[0]):
-        mask = np.add(mask, prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy())
+        cmask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
+        mask = np.add(mask, cmask)
+        print(mask)
         #mask = prediction[0]['masks'][i, 0].mul(255).byte().cpu().numpy()
         #print(mask)
         #print("------------------------------------------------")
-        #break
+        if i%1==0 and i > 0:
+            break
         
 
     #print(mask)
-    img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
-    #img_mask = Image.fromarray(mask)
+    #img_mask = Image.fromarray(np.clip(mask * 255, 0, 255))
+    img_mask = Image.fromarray(mask)
     img.show()
     img_mask.show()
 

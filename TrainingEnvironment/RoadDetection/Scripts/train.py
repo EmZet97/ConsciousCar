@@ -62,9 +62,12 @@ class Dataset(object):
             ymin = np.min(pos[0])
             ymax = np.max(pos[0])
             boxes.append([xmin, ymin, xmax, ymax])
+
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
+
         # there is only one class
         labels = torch.ones((num_objs,), dtype=torch.int64)
+
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         image_id = torch.tensor([idx])
@@ -80,9 +83,12 @@ class Dataset(object):
         target["area"] = area
         target["iscrowd"] = iscrowd
 
+        print("test2", img)
         if self.transforms is not None:
             img, target = self.transforms(img, target)
+            print("test3", img)
 
+        print("test4", img)
         return img, target
 
     def __len__(self):
@@ -90,6 +96,7 @@ class Dataset(object):
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained pre-trained on COCO
+    #fasterrcnn_resnet50_fpn
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 
     # get number of input features for the classifier
@@ -164,7 +171,6 @@ def main():
                                                    step_size=3,
                                                    gamma=0.1)
 
-    # let's train it for 10 epochs
     num_epochs = epochs
 
     for epoch in range(num_epochs):
