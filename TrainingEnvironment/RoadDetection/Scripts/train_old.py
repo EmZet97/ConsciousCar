@@ -1,9 +1,7 @@
-import json
 import os
 import numpy as np
 import torch
 from PIL import Image
-import cv2 as cv
 
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -17,92 +15,68 @@ import utils
 import transforms as T
 
 
-images_path = "..\\RawData\\Images"
-labels_path = "..\\RawData\\Labels"
+images_path = "..\\PreprocessedData\\Images"
+masks_path = "..\\PreprocessedData\\Masks"
 
 train_eval_prop = 0.8
 epochs = 500
-
-label_names = ["Road", "RoadLine"]
-label_to_remove = "Other"
 
 
 class Dataset(object):
     def __init__(self, transforms):
         self.transforms = transforms
-        
+        # load all image files, sorting them to
+        # ensure that they are aligned
         self.imgs = list(sorted(os.listdir(images_path)))
-        self.labels = list(sorted(os.listdir(labels_path)))
-
-    def generate_mask(self, mask, points, value):
-        pts = np.array(points, np.int32)
-        pts = pts.reshape((-1,1,2))
-
-        cv.fillPoly(mask,[pts],(value))
-
-        return mask
-
-    def read_label(self, label_name):        
-        label_path = os.path.join(labels_path, label_name)
-        label = open(label_path,)
-        label = json.load(label)
-        label["name"] = label_name
-
-        return label
+        self.masks = list(sorted(os.listdir(masks_path)))
 
     def __getitem__(self, idx):
+        # load images and masks
         img_path = os.path.join(images_path, self.imgs[idx])
+        mask_path = os.path.join(masks_path, self.masks[idx])
         img = Image.open(img_path).convert("RGB")
+        # note that we haven't converted the mask to RGB,
+        # because each color corresponds to a different instance
+        # with 0 being background
+        mask = Image.open(mask_path)
+
+        mask = np.array(mask)
         
-        label = self.read_label(self.labels[idx])
+        # instances are encoded as different colors
+        obj_ids = np.unique(mask)
+        
+        # first id is the background, so remove it
+        obj_ids = obj_ids[1:]
 
-        image_height = label["imageHeight"]
-        image_width = label["imageWidth"]
-
-        shapes = [s for s in label["shapes"] if s["label"] in label_names]
-        shapes_to_remove = [s for s in label["shapes"] if s["label"] not in label_names]
-
-        masks = []
+        # split the color-encoded mask into a set
+        # of binary masks
+        masks = mask == obj_ids[:, None, None]
+        
+        # get bounding box coordinates for each mask
+        num_objs = len(obj_ids)
         boxes = []
-        labels = []
-        for shape in shapes:
-            label_name = shape["label"]
-            
-            # generate mask
-            points = shape["points"]
-            mask = np.zeros((image_width, image_height), np.uint8)
-            mask = self.generate_mask(mask, points, 1)
-
-            for rm_shape in shapes_to_remove:
-                rm_points = rm_shape["points"]
-                mask = self.generate_mask(mask, rm_points, 0)
-
-            mask = mask == 1
-            # generate bounding boxes from mask
-            pos = np.where(mask)
-            print(">-1>>>>>>>>>>>>>>>>>>>>>>>", points, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">0>>>>>>>>>>>>>>>>>>>>>>>", label_name, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">1>>>>>>>>>>>>>>>>>>>>>>>", mask.shape, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">2>>>>>>>>>>>>>>>>>>>>>>>", mask, "<<<<<<<<<<<<<<<<<<<<<<<")
+        for i in range(num_objs):
+            pos = np.where(masks[i])
+            print(">1>>>>>>>>>>>>>>>>>>>>>>>", masks[i].shape, "<<<<<<<<<<<<<<<<<<<<<<<")
+            print(">2>>>>>>>>>>>>>>>>>>>>>>>", masks[i], "<<<<<<<<<<<<<<<<<<<<<<<")
             print(">3>>>>>>>>>>>>>>>>>>>>>>>", pos, "<<<<<<<<<<<<<<<<<<<<<<<")
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
             ymax = np.max(pos[0])
-            box = [xmin, ymin, xmax, ymax]
-
-            boxes.append(box)
-            masks.append(mask)
-            labels.append(label_names.index(label_name) + 1)
+            boxes.append([xmin, ymin, xmax, ymax])
 
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+
+        # there is only one class
+        labels = torch.ones((num_objs,), dtype=torch.int64)
+
         masks = torch.as_tensor(masks, dtype=torch.uint8)
 
         image_id = torch.tensor([idx])
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
         # suppose all instances are not crowd
-        iscrowd = torch.zeros((len(shapes),), dtype=torch.int64)
+        iscrowd = torch.zeros((num_objs,), dtype=torch.int64)
 
         target = {}
         target["boxes"] = boxes
