@@ -16,21 +16,27 @@ from engine import train_one_epoch, evaluate
 import utils
 import transforms as T
 
-
+### Configuration section ###
+print_freq = 10
 images_path = "..\\RawData\\Images"
 labels_path = "..\\RawData\\Labels"
 
 train_eval_prop = 0.8
-epochs = 500
+epochs = 10
 
 label_names = ["Road", "RoadLine"]
-label_to_remove = "Other"
+resize = (600, 600)
 
+train_batch_size = 1
+train_num_workers = 1
+
+test_batch_size = 1
+test_num_workers = 1
+#############################
 
 class Dataset(object):
     def __init__(self, transforms):
-        self.transforms = transforms
-        
+        self.transforms = transforms        
         self.imgs = list(sorted(os.listdir(images_path)))
         self.labels = list(sorted(os.listdir(labels_path)))
 
@@ -51,14 +57,17 @@ class Dataset(object):
         return label
 
     def __getitem__(self, idx):
+        # load and resize image
         img_path = os.path.join(images_path, self.imgs[idx])
         img = Image.open(img_path).convert("RGB")
+        img = img.resize(resize)
         
         label = self.read_label(self.labels[idx])
 
         image_height = label["imageHeight"]
         image_width = label["imageWidth"]
 
+        # divide shapes
         shapes = [s for s in label["shapes"] if s["label"] in label_names]
         shapes_to_remove = [s for s in label["shapes"] if s["label"] not in label_names]
 
@@ -70,37 +79,38 @@ class Dataset(object):
             
             # generate mask
             points = shape["points"]
-            mask = np.zeros((image_width, image_height), np.uint8)
+            mask = np.zeros((image_height, image_width), np.uint8)
             mask = self.generate_mask(mask, points, 1)
 
+            # remove other objects from mask area
             for rm_shape in shapes_to_remove:
                 rm_points = rm_shape["points"]
-                mask = self.generate_mask(mask, rm_points, 0)
+                mask = self.generate_mask(mask, rm_points, 0)           
 
+            # resize final mask, then convert to boolean
+            mask = cv.resize(mask, resize)
             mask = mask == 1
+
             # generate bounding boxes from mask
             pos = np.where(mask)
-            print(">-1>>>>>>>>>>>>>>>>>>>>>>>", points, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">0>>>>>>>>>>>>>>>>>>>>>>>", label_name, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">1>>>>>>>>>>>>>>>>>>>>>>>", mask.shape, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">2>>>>>>>>>>>>>>>>>>>>>>>", mask, "<<<<<<<<<<<<<<<<<<<<<<<")
-            print(">3>>>>>>>>>>>>>>>>>>>>>>>", pos, "<<<<<<<<<<<<<<<<<<<<<<<")
             xmin = np.min(pos[1])
             xmax = np.max(pos[1])
             ymin = np.min(pos[0])
             ymax = np.max(pos[0])
             box = [xmin, ymin, xmax, ymax]
 
+            # append results
             boxes.append(box)
             masks.append(mask)
             labels.append(label_names.index(label_name) + 1)
 
+        # convert final results
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
         masks = torch.as_tensor(masks, dtype=torch.uint8)
-
-        image_id = torch.tensor([idx])
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        image_id = torch.tensor([idx])
+
         # suppose all instances are not crowd
         iscrowd = torch.zeros((len(shapes),), dtype=torch.int64)
 
@@ -122,11 +132,11 @@ class Dataset(object):
 
 def get_model_instance_segmentation(num_classes):
     # load an instance segmentation model pre-trained pre-trained on COCO
-    #fasterrcnn_resnet50_fpn
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
+
     # replace the pre-trained head with a new one
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
@@ -148,6 +158,7 @@ def get_transform(train):
         transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
+
 def test_model(model, dataset_test):
     img, _ = dataset_test[0]
     # put the model in evaluation mode
@@ -162,8 +173,9 @@ def main():
 
     print("Cuda available: " + str(torch.cuda.is_available()))
 
-    # our dataset has two classes only - background and road
-    num_classes = 2
+    # num of classes - background and labels
+    num_classes = len(label_names) + 1
+
     # use our dataset and defined transformations
     dataset = Dataset(get_transform(train=True))
     dataset_test = Dataset(get_transform(train=False))
@@ -175,11 +187,11 @@ def main():
 
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=True, num_workers=1,
+        dataset, batch_size=train_batch_size, shuffle=True, num_workers=train_num_workers,
         collate_fn=utils.collate_fn)
 
     data_loader_test = torch.utils.data.DataLoader(
-        dataset_test, batch_size=1, shuffle=False, num_workers=1,
+        dataset_test, batch_size=test_batch_size, shuffle=False, num_workers=test_num_workers,
         collate_fn=utils.collate_fn)
 
     # get the model using our helper function
@@ -200,8 +212,8 @@ def main():
     num_epochs = epochs
 
     for epoch in range(num_epochs):
-        # train for one epoch, printing every 10 iterations
-        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
+        # train for one epoch, printing every <print_freq> iterations
+        train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=print_freq)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
