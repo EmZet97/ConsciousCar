@@ -6,7 +6,7 @@ using OpenCvSharp;
 
 namespace ConsciousCar
 {
-    public class RoadDetector
+    public class Detector
     {
         private class OUTPUT
         {
@@ -14,7 +14,16 @@ namespace ConsciousCar
             public const int Height = 600;
 
             [ColumnName("masks")]
-            public float[] Values { get; set; }
+            public float[] Masks { get; set; }
+
+            [ColumnName("labels")]
+            public long[] Labels { get; set; }
+
+            [ColumnName("boxes")]
+            public float[] Boxes { get; set; }
+
+            [ColumnName("scores")]
+            public float[] Scores { get; set; }
         }
 
         private class INPUT
@@ -30,11 +39,11 @@ namespace ConsciousCar
 
         private readonly PredictionEngine<INPUT, OUTPUT> predictionEngine;
 
-        public RoadDetector()
+        public Detector()
         {
             var mlContext = new MLContext();
 
-            var gpuModelEstimator = mlContext.Transforms.ApplyOnnxModel(outputColumnName: "masks", inputColumnName: "input", modelFile: "model.onnx", gpuDeviceId: 0);
+            var gpuModelEstimator = mlContext.Transforms.ApplyOnnxModel(outputColumnNames: new string[] { "masks", "labels", "boxes", "scores" }, inputColumnNames: new string[] { "input" }, modelFile: "model.onnx", gpuDeviceId: 0);
 
             var data = mlContext.Data.LoadFromEnumerable(new List<INPUT>());
 
@@ -62,7 +71,7 @@ namespace ConsciousCar
             return pixcels.ToArray();
         }
 
-        public IEnumerable<float[]> DetectNext(Mat image)
+        public IEnumerable<DetectionResult> DetectNext(Mat image)
         {
             Cv2.Resize(image.Clone(), image, new Size(INPUT.Width, INPUT.Height));            
 
@@ -74,19 +83,42 @@ namespace ConsciousCar
                 Values = pixcelsArray
             };
 
-            var result = predictionEngine.Predict(input).Values;
+            var result = predictionEngine.Predict(input);
 
-            var resultMasks = new List<float[]>();
-            for (int i = 0; i < 1; i++)
+            var detectionResults = new List<DetectionResult>();
+            for (int i = 0; i < result.Labels.Count(); i++)
             {
-                resultMasks.Add(
-                    result.Skip(i * OUTPUT.Width * OUTPUT.Height)
+                var mask = result.Masks.Skip(i * OUTPUT.Width * OUTPUT.Height)
                     .Take(OUTPUT.Width * OUTPUT.Height)
-                    .ToArray()
-                    );
+                    .ToArray();
+
+                var label = result.Labels.Skip(i).FirstOrDefault();
+                var coordinates = result.Boxes.Skip(i * 4).Take(4).ToArray();
+                var score = result.Scores.Skip(i).FirstOrDefault();
+
+                detectionResults.Add(
+                    new DetectionResult()
+                    {
+                        Label = (int)label,
+                        Box = new DetectionBox()
+                        {
+                            Point1 = new Point()
+                            {
+                                X = coordinates[0],
+                                Y = coordinates[1]
+                            },
+                            Point2 = new Point()
+                            {
+                                X = coordinates[2],
+                                Y = coordinates[3]
+                            }
+                        },
+                        Score = score,
+                        Mask = mask.Select(p => (byte)(p * 255)).Select(p => (byte)(p > 128 ? 255 : 0)).ToArray()
+                    });
             }
 
-            return resultMasks.AsEnumerable();
+            return detectionResults.AsEnumerable();
         }
     }
 }

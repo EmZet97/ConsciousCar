@@ -5,3 +5,7 @@ TrainingEnvironment/RoadDetection/Scripts/torch_vision/__pycache__/
 
 TrainingEnvironment/RoadDetection/Models
 TrainingEnvironment/RoadDetection/Scripts/vision/
+*.v2
+Core/.vs/*
+Core/ConsciousCar/bin
+Core/ConsciousCar/obj
