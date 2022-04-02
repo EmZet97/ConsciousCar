@@ -12,7 +12,7 @@ from torchvision.models.detection.mask_rcnn import MaskRCNNPredictor
 
 from engine import train_one_epoch, evaluate
 import utils
-import transforms as T
+import torchvision.transforms as T
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -78,7 +78,7 @@ def main():
         cv2.imshow('Frame', frame)
         frame = Image.fromarray(frame).convert('RGB')
         transforms = get_transform()
-        frame, target = transforms(frame, {})
+        frame = transforms(frame)
         print("frame[0]:", frame[0].shape)
         
         print(frame.shape)

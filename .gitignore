@@ -9,3 +9,4 @@ TrainingEnvironment/RoadDetection/Scripts/vision/
 Core/.vs/*
 Core/ConsciousCar/bin
 Core/ConsciousCar/obj
+*.pyc

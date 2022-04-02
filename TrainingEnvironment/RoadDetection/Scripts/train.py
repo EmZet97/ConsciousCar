@@ -14,7 +14,7 @@ sys.path.append('vision/references/detection/')
 
 from engine import train_one_epoch, evaluate
 import utils
-import transforms as T
+import torchvision.transforms as T
 
 ### Configuration section ###
 print_freq = 10
@@ -22,16 +22,16 @@ images_path = "..\\RawData\\Images"
 labels_path = "..\\RawData\\Labels"
 
 train_eval_prop = 0.8
-epochs = 10
+epochs = 1000
 
 label_names = ["Road", "RoadLine"]
 resize = (600, 600)
 
-train_batch_size = 1
-train_num_workers = 1
+train_batch_size = 6
+train_num_workers = 4
 
-test_batch_size = 1
-test_num_workers = 1
+test_batch_size = 2
+test_num_workers = 2
 #############################
 
 class Dataset(object):
@@ -107,9 +107,9 @@ class Dataset(object):
         # convert final results
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
         labels = torch.as_tensor(labels, dtype=torch.int64)
-        masks = torch.as_tensor(masks, dtype=torch.uint8)
+        masks = torch.as_tensor(np.array(masks), dtype=torch.uint8)
         area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        image_id = torch.tensor([idx])
+        image_id = torch.tensor(np.array([idx]))
 
         # suppose all instances are not crowd
         iscrowd = torch.zeros((len(shapes),), dtype=torch.int64)
@@ -122,8 +122,11 @@ class Dataset(object):
         target["area"] = area
         target["iscrowd"] = iscrowd
 
+        #print(self.transforms)
+
         if self.transforms is not None:
-            img, target = self.transforms(img, target)
+            img = self.transforms(img)
+            #img = self.transforms(img, target)
 
         return img, target
 

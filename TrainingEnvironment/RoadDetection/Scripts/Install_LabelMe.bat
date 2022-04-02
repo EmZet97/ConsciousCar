@@ -1,7 +1,7 @@
 @ECHO OFF
 ECHO Installing LabelMe
 
-call activate tensorflow
+call activate ConsciousCar
 
 pip install labelme
 
