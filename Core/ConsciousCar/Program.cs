@@ -27,7 +27,7 @@ namespace ConsciousCar
 
         static void Main(string[] args)
         {
-            var detector = new Detector(32);
+            var detector = new Detector(50);
 
             using (var window1 = new Window("dst image1"))
             using (var window2 = new Window("dst image2"))
@@ -42,11 +42,12 @@ namespace ConsciousCar
                     try
                     {
                         capture.Read(frame);
+
                         Cv2.Resize(frame.Clone(), frame, new Size(imageWidth, imageHeight));
-                        //var mat = OpenCvSharp.Cv2.
-                        //window1.ShowImage(frame);
+
                         var screen = BitmapConverter.ToMat(screenCapture);
-                        var detectionResults = detector.DetectNext(frame);
+
+                        var detectionResults = detector.DetectNext(frame.Clone());
 
 
                         var linesMask = GenerateMask(detectionResults, DetectionLabel.RoadLine);
