@@ -10,8 +10,8 @@ namespace ConsciousCar
     {
         private class OUTPUT
         {
-            public const int Width = 600;
-            public const int Height = 600;
+            public const int Width = 300;
+            public const int Height = 300;
 
             [ColumnName("masks")]
             public float[] Masks { get; set; }
@@ -29,8 +29,8 @@ namespace ConsciousCar
         private class INPUT
         {
             public const int ChannelAmount = 3;
-            public const int Width = 600;
-            public const int Height = 600;
+            public const int Width = 300;
+            public const int Height = 300;
 
             [ColumnName("input")]
             [VectorType(1, ChannelAmount, Width, Height)]
@@ -55,18 +55,9 @@ namespace ConsciousCar
         private static float[] ProcessImage(Vec3b[] rgbImage)
         {
             var pixcels = new List<float>();
-            foreach (var pixcel in rgbImage)
-            {
-                pixcels.Add(((float)pixcel.Item0) / 255 );
-            }
-            foreach (var pixcel in rgbImage)
-            {
-                pixcels.AddRange(new[] { ((float)pixcel.Item1) / 255 });
-            }
-            foreach (var pixcel in rgbImage)
-            {
-                pixcels.AddRange(new[] { ((float)pixcel.Item2) / 255 });
-            }
+            pixcels.AddRange(rgbImage.Select(pixcel => (float)pixcel.Item0 / 255));
+            pixcels.AddRange(rgbImage.Select(pixcel => (float)pixcel.Item1 / 255));
+            pixcels.AddRange(rgbImage.Select(pixcel => (float)pixcel.Item2 / 255));
 
             return pixcels.ToArray();
         }
@@ -85,8 +76,13 @@ namespace ConsciousCar
 
             var result = predictionEngine.Predict(input);
 
+            if(result is null)
+            {
+                return Enumerable.Empty<DetectionResult>();
+            }
+
             var detectionResults = new List<DetectionResult>();
-            for (int i = 0; i < result.Labels.Count(); i++)
+            for (int i = 0; i < result.Labels.Length; i++)
             {
                 var mask = result.Masks.Skip(i * OUTPUT.Width * OUTPUT.Height)
                     .Take(OUTPUT.Width * OUTPUT.Height)
@@ -99,7 +95,7 @@ namespace ConsciousCar
                 detectionResults.Add(
                     new DetectionResult()
                     {
-                        Label = (int)label,
+                        Label = (DetectionLabel)label,
                         Box = new DetectionBox()
                         {
                             Point1 = new Point()

@@ -14,7 +14,7 @@ def export_model(model, dest_src):
     input_names = ["input"]
     output_names = ["boxes", "labels", "scores", "masks"]
 
-    dummy_input = torch.rand(1, 3, 600, 600).to("cpu")
+    dummy_input = torch.rand(1, 3, 300, 300).to("cpu")
     print(dummy_input)
     model.to("cpu")
     
