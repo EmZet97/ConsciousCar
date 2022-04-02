@@ -8,8 +8,8 @@ namespace ConsciousCar
 {
     class Program
     {
-        const int imageWidth = 300;
-        const int imageHeight = 300;
+        const int imageWidth = 600;
+        const int imageHeight = 600;
 
         private static Mat GenerateMask(IEnumerable<DetectionResult> detections, DetectionLabel labelId)
         {
@@ -18,8 +18,7 @@ namespace ConsciousCar
             {
                 if (detectionResult.Label == labelId)
                 {
-                    var gray = new Mat(imageWidth, imageHeight, MatType.CV_8UC1, detectionResult.Mask);
-                    Cv2.Add(gray, fin_mask.Clone(), fin_mask);
+                    Cv2.Add(detectionResult.Mask, fin_mask.Clone(), fin_mask);
                 }
             }
 
@@ -28,7 +27,7 @@ namespace ConsciousCar
 
         static void Main(string[] args)
         {
-            var detector = new Detector();
+            var detector = new Detector(32);
 
             using (var window1 = new Window("dst image1"))
             using (var window2 = new Window("dst image2"))

@@ -39,7 +39,9 @@ namespace ConsciousCar
 
         private readonly PredictionEngine<INPUT, OUTPUT> predictionEngine;
 
-        public Detector()
+        public int ResultMaskValueThreshold { get; }
+
+        public Detector(int resultMaskValueThreshold)
         {
             var mlContext = new MLContext();
 
@@ -50,6 +52,7 @@ namespace ConsciousCar
             var gpuModel = gpuModelEstimator.Fit(data);
 
             predictionEngine = mlContext.Model.CreatePredictionEngine<INPUT, OUTPUT>(gpuModel, ignoreMissingColumns: false);
+            ResultMaskValueThreshold = resultMaskValueThreshold;
         }
 
         private static float[] ProcessImage(Vec3b[] rgbImage)
@@ -64,7 +67,13 @@ namespace ConsciousCar
 
         public IEnumerable<DetectionResult> DetectNext(Mat image)
         {
-            Cv2.Resize(image.Clone(), image, new Size(INPUT.Width, INPUT.Height));            
+            var originalWidth = image.Size().Width;
+            var originalHeight = image.Size().Height;
+
+            var originalWidthRatio = originalWidth / OUTPUT.Width;
+            var originalHeightRatio = originalHeight / OUTPUT.Height;
+
+            Cv2.Resize(image.Clone(), image, new Size(INPUT.Width, INPUT.Height));
 
             image.GetArray<Vec3b>(out var vectorizedImage);
             var pixcelsArray = ProcessImage(vectorizedImage);
@@ -76,7 +85,7 @@ namespace ConsciousCar
 
             var result = predictionEngine.Predict(input);
 
-            if(result is null)
+            if (result is null)
             {
                 return Enumerable.Empty<DetectionResult>();
             }
@@ -84,13 +93,20 @@ namespace ConsciousCar
             var detectionResults = new List<DetectionResult>();
             for (int i = 0; i < result.Labels.Length; i++)
             {
-                var mask = result.Masks.Skip(i * OUTPUT.Width * OUTPUT.Height)
+                var maskValues = result.Masks.Skip(i * OUTPUT.Width * OUTPUT.Height)
                     .Take(OUTPUT.Width * OUTPUT.Height)
                     .ToArray();
 
                 var label = result.Labels.Skip(i).FirstOrDefault();
                 var coordinates = result.Boxes.Skip(i * 4).Take(4).ToArray();
                 var score = result.Scores.Skip(i).FirstOrDefault();
+
+                var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p)).ToArray();
+                var mask = new Mat(OUTPUT.Width, OUTPUT.Height, MatType.CV_8UC1, maskAsBytes);
+                // Resize OUTPUT mast to original input size
+                Cv2.Resize(mask.Clone(), mask, new Size(originalWidth, originalHeight));
+
+                mask.GetArray(out byte[] bytesMask);
 
                 detectionResults.Add(
                     new DetectionResult()
@@ -100,17 +116,20 @@ namespace ConsciousCar
                         {
                             Point1 = new Point()
                             {
-                                X = coordinates[0],
-                                Y = coordinates[1]
+                                // Match coordinates to image ratio change
+                                X = coordinates[0] * originalWidthRatio,
+                                Y = coordinates[1] * originalHeightRatio,
                             },
                             Point2 = new Point()
                             {
-                                X = coordinates[2],
-                                Y = coordinates[3]
+                                // Match coordinates to image ratio change
+                                X = coordinates[2] * originalWidthRatio,
+                                Y = coordinates[3] * originalHeightRatio,
                             }
                         },
                         Score = score,
-                        Mask = mask.Select(p => (byte)(p * 255)).Select(p => (byte)(p > 128 ? 255 : 0)).ToArray()
+                        Mask = mask,
+                        ByteMask = bytesMask,
                     });
             }
 
