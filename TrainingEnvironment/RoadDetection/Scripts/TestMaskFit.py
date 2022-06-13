@@ -16,7 +16,7 @@ def merge_images_and_masks(src_images_path, src_masks_path, dest_path):
         print("Opened image file:", image_name)
 
         image_path = images_path + "\\" + image_name
-        mask_path = masks_path + "\\" + image_name.split(".")[0] + ".png"
+        mask_path = masks_path + "\\" + image_name.replace("_leftImg8bit.png", "_gtFine_polygons.json")
 
         mask = cv.imread(mask_path, cv.IMREAD_GRAYSCALE)
         image = cv.imread(image_path)

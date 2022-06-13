@@ -22,16 +22,28 @@ images_path = "..\\RawData\\Images"
 labels_path = "..\\RawData\\Labels"
 
 train_eval_prop = 0.8
-epochs = 1000
+epochs = 100
 
-label_names = ["Road", "RoadLine"]
+label_names = ["other",
+     "road", "sidewalk", "parking", "rail track",
+     "person", "rider", 
+     "car", "truck", "bus", "on rails", "motorcycle", "bicycle", "caravan", "trailer",
+     "building", "wall", "fence", "guard rail", "bridge", "tunnel",
+     "pole", "pole group", "traffic sign", "traffic light",
+     "vegetation", "terrain",
+     "sky",
+     "ground", "dynamic", "static"]
+
 resize = (600, 600)
 
-train_batch_size = 6
-train_num_workers = 4
+train_batch_size = 4
+train_num_workers = 5
+
 
 test_batch_size = 2
 test_num_workers = 2
+
+backup_save_epochs = 1
 #############################
 
 class Dataset(object):
@@ -52,7 +64,7 @@ class Dataset(object):
         label_path = os.path.join(labels_path, label_name)
         label = open(label_path,)
         label = json.load(label)
-        label["name"] = label_name
+        label["label_name"] = label_name
 
         return label
 
@@ -64,45 +76,51 @@ class Dataset(object):
         
         label = self.read_label(self.labels[idx])
 
-        image_height = label["imageHeight"]
-        image_width = label["imageWidth"]
+        image_height = label["imgHeight"]
+        image_width = label["imgWidth"]
 
         # divide shapes
-        shapes = [s for s in label["shapes"] if s["label"] in label_names]
-        shapes_to_remove = [s for s in label["shapes"] if s["label"] not in label_names]
+        shapes = [s for s in label["objects"] if s["label"] in label_names]
+        shapes_to_remove = [s for s in label["objects"] if s["label"] not in label_names]
 
         masks = []
         boxes = []
         labels = []
+        
         for shape in shapes:
-            label_name = shape["label"]
-            
-            # generate mask
-            points = shape["points"]
-            mask = np.zeros((image_height, image_width), np.uint8)
-            mask = self.generate_mask(mask, points, 1)
+            try:
+                label_name = shape["label"]
+                
+                # generate mask
+                points = shape["polygon"]
+                mask = np.zeros((image_height, image_width), np.uint8)
+                mask = self.generate_mask(mask, points, 1)
 
-            # remove other objects from mask area
-            for rm_shape in shapes_to_remove:
-                rm_points = rm_shape["points"]
-                mask = self.generate_mask(mask, rm_points, 0)           
+                # remove other objects from mask area
+                # for rm_shape in shapes_to_remove:
+                #     rm_points = rm_shape["polygon"]
+                #     mask = self.generate_mask(mask, rm_points, 0)           
 
-            # resize final mask, then convert to boolean
-            mask = cv.resize(mask, resize)
-            mask = mask == 1
+                # resize final mask, then convert to boolean
+                mask = cv.resize(mask, resize)
+                mask = mask == 1
+                # generate bounding boxes from mask
+                pos = np.where(mask)
+                #print(">>", len(pos))
+                xmin = np.min(pos[1])
+                xmax = np.max(pos[1])
+                ymin = np.min(pos[0])
+                ymax = np.max(pos[0])
+                box = [xmin, ymin, xmax, ymax]
 
-            # generate bounding boxes from mask
-            pos = np.where(mask)
-            xmin = np.min(pos[1])
-            xmax = np.max(pos[1])
-            ymin = np.min(pos[0])
-            ymax = np.max(pos[0])
-            box = [xmin, ymin, xmax, ymax]
+                # append results
+                boxes.append(box)
+                masks.append(mask)
+                labels.append(label_names.index(label_name))
 
-            # append results
-            boxes.append(box)
-            masks.append(mask)
-            labels.append(label_names.index(label_name) + 1)
+            except:
+                #print(">>>", label_name, img_path)
+                pass
 
         # convert final results
         boxes = torch.as_tensor(boxes, dtype=torch.float32)
@@ -122,6 +140,8 @@ class Dataset(object):
         target["area"] = area
         target["iscrowd"] = iscrowd
 
+
+        #print(target)
         #print(self.transforms)
 
         if self.transforms is not None:
@@ -134,7 +154,7 @@ class Dataset(object):
         return len(self.imgs)
 
 def get_model_instance_segmentation(num_classes):
-    # load an instance segmentation model pre-trained pre-trained on COCO
+    # load an instance segmentation model pre-trained on COCO
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 
     # get number of input features for the classifier
@@ -213,7 +233,7 @@ def main():
                                                    gamma=0.1)
 
     num_epochs = epochs
-
+    last_backup_file = ""
     for epoch in range(num_epochs):
         # train for one epoch, printing every <print_freq> iterations
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=print_freq)
@@ -221,6 +241,14 @@ def main():
         lr_scheduler.step()
         # evaluate on the test dataset
         evaluate(model, data_loader_test, device=device)
+        
+        # backup save
+        if epoch % backup_save_epochs == 0 and epoch > 0:
+            model_name = f"../Models/Backups/model_e{epoch}_t{len(data_loader)}_e{len(data_loader_test)}.t"
+            torch.save(model, model_name)
+            if last_backup_file != "":
+                os.remove(last_backup_file) 
+            last_backup_file = model_name
 
     model_name = f"../Models/model_e{num_epochs}_t{len(data_loader)}_e{len(data_loader_test)}.t"
     

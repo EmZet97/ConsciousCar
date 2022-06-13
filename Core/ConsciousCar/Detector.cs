@@ -101,7 +101,7 @@ namespace ConsciousCar
                 var coordinates = result.Boxes.Skip(i * 4).Take(4).ToArray();
                 var score = result.Scores.Skip(i).FirstOrDefault();
 
-                var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p > ResultMaskValueThreshold ? ResultMaskValueThreshold : 0)).ToArray();
+                var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p > ResultMaskValueThreshold ? label : 0)).ToArray();
                 var mask = new Mat(OUTPUT.Width, OUTPUT.Height, MatType.CV_8UC1, maskAsBytes);
                 // Resize OUTPUT mast to original input size
                 Cv2.Resize(mask.Clone(), mask, new Size(originalWidth, originalHeight));

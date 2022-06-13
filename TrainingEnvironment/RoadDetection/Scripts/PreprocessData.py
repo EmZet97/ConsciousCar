@@ -17,7 +17,6 @@ def preprocess_source_image(image):
 def preprocess_data(source_path, destination_path, color_mode):
     images_fin_path = os.path.relpath(source_path, cur_path)
     image_files = list(sorted(os.listdir(images_fin_path)))
-    images = []
 
     for image_name in image_files:
         print("Opened image file:", image_name)
