@@ -1,5 +1,5 @@
 call activate ConsciousCar
 
-python train.py
+python ./PythonScripts/train.py
 
 PAUSE

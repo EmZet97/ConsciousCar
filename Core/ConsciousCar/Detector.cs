@@ -10,8 +10,8 @@ namespace ConsciousCar
     {
         private class OUTPUT
         {
-            public const int Width = 300;
-            public const int Height = 300;
+            public const int Width = 512;
+            public const int Height = 512;
 
             [ColumnName("masks")]
             public float[] Masks { get; set; }
@@ -29,8 +29,8 @@ namespace ConsciousCar
         private class INPUT
         {
             public const int ChannelAmount = 3;
-            public const int Width = 300;
-            public const int Height = 300;
+            public const int Width = 512;
+            public const int Height = 512;
 
             [ColumnName("input")]
             [VectorType(1, ChannelAmount, Width, Height)]
@@ -39,9 +39,10 @@ namespace ConsciousCar
 
         private readonly PredictionEngine<INPUT, OUTPUT> predictionEngine;
 
+        public float ResultScoreTreshold { get; }
         public int ResultMaskValueThreshold { get; }
 
-        public Detector(int resultMaskValueThreshold)
+        public Detector(int resultMaskValueThreshold, float resultScoreTreshold)
         {
             var mlContext = new MLContext();
 
@@ -53,6 +54,7 @@ namespace ConsciousCar
 
             predictionEngine = mlContext.Model.CreatePredictionEngine<INPUT, OUTPUT>(gpuModel, ignoreMissingColumns: false);
             ResultMaskValueThreshold = resultMaskValueThreshold;
+            ResultScoreTreshold = resultScoreTreshold;
         }
 
         private static float[] ProcessImage(Vec3b[] rgbImage)
@@ -70,8 +72,8 @@ namespace ConsciousCar
             var originalWidth = image.Size().Width;
             var originalHeight = image.Size().Height;
 
-            var originalWidthRatio = originalWidth / OUTPUT.Width;
-            var originalHeightRatio = originalHeight / OUTPUT.Height;
+            var originalWidthRatio = (float)originalWidth / (float)OUTPUT.Width;
+            var originalHeightRatio = (float)originalHeight / (float)OUTPUT.Height;
 
             Cv2.Resize(image.Clone(), image, new Size(INPUT.Width, INPUT.Height));
 
@@ -101,7 +103,17 @@ namespace ConsciousCar
                 var coordinates = result.Boxes.Skip(i * 4).Take(4).ToArray();
                 var score = result.Scores.Skip(i).FirstOrDefault();
 
-                var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p > ResultMaskValueThreshold ? label : 0)).ToArray();
+                if (score < ResultScoreTreshold) continue;
+
+                //var range_change = (float)255 / ((float)255 - (float)ResultMaskValueThreshold);
+                //var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p > ResultMaskValueThreshold ? p * range_change - ResultMaskValueThreshold * range_change : 0)).ToArray();
+
+                var OldRange = (255 - ResultMaskValueThreshold);
+                var NewRange = (255 - 0);
+                //(((p - ResultMaskValueThreshold) * NewRange) / OldRange) + 0
+
+                var maskAsBytes = maskValues.Select(p => (byte)(p * 255)).Select(p => (byte)(p > 0 ? p : 0)).ToArray();
+
                 var mask = new Mat(OUTPUT.Width, OUTPUT.Height, MatType.CV_8UC1, maskAsBytes);
                 // Resize OUTPUT mast to original input size
                 Cv2.Resize(mask.Clone(), mask, new Size(originalWidth, originalHeight));

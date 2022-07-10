@@ -3,13 +3,14 @@
     public enum DetectionLabel
     {
         Other,
-        Road, Sidewalk, Parking, RailTrack,
+        Road, Sidewalk,//, Parking, RailTrack,
         Person, Rider,
-        Car, Truck, Bus, OnRails, Motorcycle, Bicycle, Caravan, Trailer,
-        Building, Wall, Fence, GuardRail, Bridge, Tunnel,
-        Pole, PoleGroup, TrafficSign, TrafficLight,
+        Car, Truck, Bus, Motorcycle, Bicycle, Caravan,// Trailer,
+        //Building, Wall, Fence, GuardRail, Bridge, Tunnel,
+        //Pole, PoleGroup,
+        TrafficSign, TrafficLight,
         Vegetation, Terrain,
         Sky,
-        Ground, Dynamic, Static
+        //Ground, Dynamic, Static
     }
 }

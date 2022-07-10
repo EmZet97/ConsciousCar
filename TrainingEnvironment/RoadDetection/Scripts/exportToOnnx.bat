@@ -1,6 +1,6 @@
 
 call activate ConsciousCar
 
-python onnx_export.py
+python ./PythonScripts/onnx_export.py
 
 PAUSE
