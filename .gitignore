@@ -1,4 +1,5 @@
 TrainingEnvironment/RoadDetection/PreprocessedData/
+TrainingEnvironment/RoadDetection/RawData/
 
 TrainingEnvironment/RoadDetection/Scripts/torch_vision
 TrainingEnvironment/RoadDetection/Scripts/torch_vision/__pycache__/
