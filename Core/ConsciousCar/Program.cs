@@ -72,7 +72,7 @@ namespace ConsciousCar
                         var detectionResults = detector.DetectNext(screen.Clone());
 
 
-                        var detection1 = GenerateMask(detectionResults, DetectionLabel.Car);
+                        var detection1 = GenerateMask(detectionResults, DetectionLabel.Vehicle);
 
                         //var detection2 = GenerateMask(detectionResults, DetectionLabel.Road);
                         //var detection3 = GenerateMask(detectionResults, DetectionLabel.Sidewalk);

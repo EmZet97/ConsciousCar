@@ -22,18 +22,20 @@ images_path = "..\\RawData\\Images"
 labels_path = "..\\RawData\\Labels"
 
 train_eval_prop = 0.8
-epochs = 100
+epochs = 200
 
 label_names = ["other",
      "road", "sidewalk",
-     "person", "rider",
+     "person",
      "vehicle",
+     "building",
      "traffic sign", "traffic light",
-     "vegetation", "terrain",
-     "sky"]
+     "background"]
 
 label_name_replacements = [
-    [["car", "truck", "bus", "motorcycle", "bicycle", "caravan"], "vehicle"]
+    [["car", "truck", "bus", "on rails", "motorcycle", "bicycle", "caravan", "trailer"], "vehicle"],
+    [["vegetation", "terrain", "sky", "ground"], "background"],
+    [["person", "rider"], "person"]
     ]
 
      
